@@ -1,3 +1,4 @@
+using Toubiana.Mock.Exceptions;
 using Toubiana.Mock.Tests.Interfaces;
 using Xunit;
 
@@ -39,6 +40,24 @@ namespace Toubiana.Mock.Tests
 
             Assert.Equal("woof", mockDog.Object.Talk());
             Assert.Equal("toto", mock.Object.SimpleMethod());
+        }
+
+        [Fact]
+        public void CallNotSetupMethodWithReturnTest()
+        {
+            var mockDog = new Mock<IAnimal>();
+
+            Assert.Throws<MethodNotSetupException>(
+                () => mockDog.Object.Talk());
+        }
+
+        [Fact]
+        public void CallNotSetupMethodTest()
+        {
+            var mockDog = new Mock<IAnimal>();
+
+            Assert.Throws<MethodNotSetupException>(
+                () => mockDog.Object.Walk());
         }
     }
 }

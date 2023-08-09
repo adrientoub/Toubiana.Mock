@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
+using Toubiana.Mock.Exceptions;
 
 namespace Toubiana.Mock
 {
@@ -90,7 +91,16 @@ namespace Toubiana.Mock
                 return methodResult.GetResult();
             }
 
-            throw new Exception();
+            throw new MethodNotSetupException(methodName);
+        }
+
+        // Called by the mocked object to validate that the method was setup when the method returns void.
+        public void ValidateMethodSetup(string methodName)
+        {
+            if (!_setups.TryGetValue(methodName, out var _))
+            {
+                throw new MethodNotSetupException(methodName);
+            }
         }
 
         private T BuildObject()
@@ -131,6 +141,12 @@ namespace Toubiana.Mock
 
                 if (method.ReturnType == typeof(void))
                 {
+                    MethodInfo validateMethodSetup = this.GetType().GetMethod(nameof(ValidateMethodSetup), BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
+
+                    ilGenerator.Emit(OpCodes.Ldarg_0);
+                    ilGenerator.Emit(OpCodes.Callvirt, propertyBuilder.GetGetMethod());
+                    ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+                    ilGenerator.Emit(OpCodes.Callvirt, validateMethodSetup);
                     ilGenerator.Emit(OpCodes.Ret);
                 }
                 else
