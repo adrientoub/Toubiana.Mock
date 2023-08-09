@@ -21,8 +21,10 @@ namespace Toubiana.Mock.Tests
             var mockDog = new Mock<IAnimal>();
             mockDog.Setup(c => c.Talk())
                    .Returns("woof");
+            mockDog.Setup(c => c.Walk());
 
             Assert.Equal("woof", mockDog.Object.Talk());
+            mockDog.Object.Walk();
         }
 
         [Fact]

@@ -8,7 +8,7 @@ namespace Toubiana.Mock
     public class Mock<T>
         where T : class
     {
-        private readonly ConcurrentDictionary<string, MockReturn> _setups = new ConcurrentDictionary<string, MockReturn>();
+        private readonly ConcurrentDictionary<string, MockReturn?> _setups = new ConcurrentDictionary<string, MockReturn?>();
 
         private readonly Type _type;
 
@@ -25,7 +25,7 @@ namespace Toubiana.Mock
             _type = typeof(T);
         }
 
-        public static string GetMethodName<TResult>(Expression<Func<T, TResult>> func)
+        public static string GetMethodName<TDelegate>(Expression<TDelegate> func)
         {
             if (func.Body is MethodCallExpression methodCallExpression)
             {
@@ -41,6 +41,12 @@ namespace Toubiana.Mock
             var mockReturn = new MockReturn<TResult>();
             _setups[key] = mockReturn;
             return mockReturn;
+        }
+
+        public void Setup(Expression<Action<T>> func)
+        {
+            var key = GetMethodName(func);
+            _setups[key] = null;
         }
 
         public T Object => BuildObject();
@@ -123,13 +129,20 @@ namespace Toubiana.Mock
                 MethodBuilder methodBuilder = typeBuilder.DefineMethod(method.Name, newAttributes, method.ReturnType, method.GetParameters().Select(x => x.ParameterType).ToArray());
                 ILGenerator ilGenerator = methodBuilder.GetILGenerator();
 
-                MethodInfo getReturnValue = this.GetType().GetMethod(nameof(GetReturn), BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
+                if (method.ReturnType == typeof(void))
+                {
+                    ilGenerator.Emit(OpCodes.Ret);
+                }
+                else
+                {
+                    MethodInfo getReturnValue = this.GetType().GetMethod(nameof(GetReturn), BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
 
-                ilGenerator.Emit(OpCodes.Ldarg_0);
-                ilGenerator.Emit(OpCodes.Callvirt, propertyBuilder.GetGetMethod());
-                ilGenerator.Emit(OpCodes.Ldstr, method.Name);
-                ilGenerator.Emit(OpCodes.Callvirt, getReturnValue);
-                ilGenerator.Emit(OpCodes.Ret);
+                    ilGenerator.Emit(OpCodes.Ldarg_0);
+                    ilGenerator.Emit(OpCodes.Callvirt, propertyBuilder.GetGetMethod());
+                    ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+                    ilGenerator.Emit(OpCodes.Callvirt, getReturnValue);
+                    ilGenerator.Emit(OpCodes.Ret);
+                }
             }
 
             // Create the type.

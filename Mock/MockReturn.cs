@@ -2,7 +2,7 @@
 {
     public abstract class MockReturn
     {
-        // TODO: make it private
+        // TODO: make it protected
         public abstract object GetResult();
     }
 
