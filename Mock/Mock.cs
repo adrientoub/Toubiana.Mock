@@ -58,7 +58,7 @@ namespace Toubiana.Mock
 
             // Define field
             FieldBuilder fieldBuilder = typeBuilder.DefineField("m_" + MockObjectPropertyName, typeof(Mock<T>), FieldAttributes.Private);
-            // Define "getter" for MyChild property
+            // Define "getter" for the property
             MethodBuilder getterBuilder = typeBuilder.DefineMethod("get_" + MockObjectPropertyName,
                                                 MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
                                                 typeof(Mock<T>),
@@ -68,7 +68,7 @@ namespace Toubiana.Mock
             getterIL.Emit(OpCodes.Ldfld, fieldBuilder);
             getterIL.Emit(OpCodes.Ret);
 
-            // Define "setter" for MyChild property
+            // Define "setter" for the property
             MethodBuilder setterBuilder = typeBuilder.DefineMethod("set_" + MockObjectPropertyName,
                                                 MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
                                                 null,
