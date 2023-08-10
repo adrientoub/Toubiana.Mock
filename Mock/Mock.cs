@@ -106,7 +106,7 @@ namespace Toubiana.Mock
             return propertyBuilder;
         }
 
-        public object GetMethodReturnValue(string methodName)
+        internal object GetMethodReturnValue(string methodName)
         {
             if (_setups.TryGetValue(methodName, out var methodResult))
             {
@@ -118,7 +118,7 @@ namespace Toubiana.Mock
         }
 
         // Called by the mocked object to validate that the method was setup when the method returns void.
-        public void ValidateMethodSetup(string methodName)
+        internal void ValidateMethodSetup(string methodName)
         {
             if (!_setups.TryGetValue(methodName, out var mockReturn))
             {
@@ -159,7 +159,7 @@ namespace Toubiana.Mock
         /// </summary>
         private static Type CreateDynamicType(Type interfaceToImplement)
         {
-            AssemblyName assemblyName = new AssemblyName("DynamicAssembly");
+            AssemblyName assemblyName = new AssemblyName(Constants.MockAssemblyName);
             AssemblyBuilder assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule("DynamicModule");
 
@@ -204,7 +204,7 @@ namespace Toubiana.Mock
                 methodName = nameof(GetMethodReturnValue);
             }
 
-            MethodInfo methodToCall = typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
+            MethodInfo methodToCall = typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, new Type[] { typeof(string), });
             ilGenerator.Emit(OpCodes.Ldarg_0);
             ilGenerator.Emit(OpCodes.Callvirt, property.GetGetMethod());
             ilGenerator.Emit(OpCodes.Ldstr, method.Name);

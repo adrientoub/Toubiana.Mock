@@ -13,8 +13,7 @@
             CallCount++;
         }
 
-        // TODO: make it protected
-        public virtual object GetResult()
+        internal virtual object GetResult()
         {
             throw new NotImplementedException();
         }
@@ -40,7 +39,7 @@
             _isAsync = true;
         }
 
-        public override object GetResult()
+        internal override object GetResult()
         {
             if (_isAsync)
             {
