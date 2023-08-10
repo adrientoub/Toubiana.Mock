@@ -9,7 +9,7 @@ namespace Toubiana.Mock
     public class Mock<T>
         where T : class
     {
-        private readonly ConcurrentDictionary<string, MockReturn?> _setups = new ConcurrentDictionary<string, MockReturn?>();
+        private readonly ConcurrentDictionary<string, MockReturn> _setups = new ConcurrentDictionary<string, MockReturn>();
 
         private readonly Type _type;
 
@@ -47,7 +47,23 @@ namespace Toubiana.Mock
         public void Setup(Expression<Action<T>> func)
         {
             var key = GetMethodName(func);
-            _setups[key] = null;
+            _setups[key] = new MockReturn();
+        }
+
+        public void Verify(Expression<Action<T>> func, int count)
+        {
+            var key = GetMethodName(func);
+            if (_setups.TryGetValue(key, out var mockReturn))
+            {
+                if (mockReturn.CallCount != count)
+                {
+                    throw new VerifyFailedException(key, count, mockReturn.CallCount);
+                }
+            }
+            else
+            {
+                throw new MethodNotSetupException(key);
+            }
         }
 
         public T Object => BuildObject();
@@ -88,6 +104,7 @@ namespace Toubiana.Mock
         {
             if (_setups.TryGetValue(methodName, out var methodResult))
             {
+                methodResult.Call();
                 return methodResult.GetResult();
             }
 
@@ -97,10 +114,12 @@ namespace Toubiana.Mock
         // Called by the mocked object to validate that the method was setup when the method returns void.
         public void ValidateMethodSetup(string methodName)
         {
-            if (!_setups.TryGetValue(methodName, out var _))
+            if (!_setups.TryGetValue(methodName, out var mockReturn))
             {
                 throw new MethodNotSetupException(methodName);
             }
+
+            mockReturn.Call();
         }
 
         private T BuildObject()

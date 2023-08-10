@@ -1,13 +1,31 @@
 ﻿namespace Toubiana.Mock
 {
-    public abstract class MockReturn
+    public class MockReturn
     {
+        internal int CallCount { get; private set; } = 0;
+
+        internal MockReturn()
+        {
+        }
+
+        internal void Call()
+        {
+            CallCount++;
+        }
+
         // TODO: make it protected
-        public abstract object GetResult();
+        public virtual object GetResult()
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class MockReturn<TResult> : MockReturn
     {
+        internal MockReturn()
+        {
+        }
+
         private TResult? _result = default;
         private bool _isAsync = false;
 
