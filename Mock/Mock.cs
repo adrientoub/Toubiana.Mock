@@ -14,6 +14,7 @@ namespace Toubiana.Mock
         private readonly ConcurrentDictionary<string, MockReturn> _setups = new ConcurrentDictionary<string, MockReturn>();
 
         private readonly Type _interface;
+        private T? _object = default;
 
         private const string MockObjectPropertyName = "SuperMock";
         private const string MockTypeName = "MyMockTypeName";
@@ -74,7 +75,17 @@ namespace Toubiana.Mock
             }
         }
 
-        public T Object => BuildObject();
+        public T Object
+        {
+            get
+            {
+                if (_object == null)
+                {
+                    _object = BuildObject();
+                }
+                return _object;
+            }
+        }
 
         private static PropertyBuilder DefinePropertyToStoreMock(TypeBuilder typeBuilder)
         {
