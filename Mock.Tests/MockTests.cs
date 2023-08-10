@@ -29,6 +29,16 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
+        public void MockPropertyTest()
+        {
+            var propertyMock = new Mock<IProperty>();
+            propertyMock.Setup(c => c.Name)
+                   .Returns("Toto");
+
+            Assert.Equal("Toto", propertyMock.Object.Name);
+        }
+
+        [Fact]
         public void DoubleTest()
         {
             var mockDog = new Mock<IAnimal>();

@@ -40,6 +40,22 @@ namespace Toubiana.Mock
             _setups[key] = new MockReturn();
         }
 
+        public void Verify<TResult>(Expression<Func<T, TResult>> func, int count)
+        {
+            var key = GetMethodName(func);
+            if (_setups.TryGetValue(key, out var mockReturn))
+            {
+                if (mockReturn.CallCount != count)
+                {
+                    throw new VerifyFailedException(key, count, mockReturn.CallCount);
+                }
+            }
+            else
+            {
+                throw new MethodNotSetupException(key);
+            }
+        }
+
         public void Verify(Expression<Action<T>> func, int count)
         {
             var key = GetMethodName(func);
@@ -129,6 +145,10 @@ namespace Toubiana.Mock
             if (func.Body is MethodCallExpression methodCallExpression)
             {
                 return methodCallExpression.Method.Name;
+            }
+            else if (func.Body is MemberExpression memberExpression)
+            {
+                return "get_" + memberExpression.Member.Name;
             }
 
             throw new ExpressionTooComplexException();

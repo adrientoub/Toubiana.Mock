@@ -50,7 +50,6 @@ namespace Toubiana.Mock.Tests
                 () => mock.Verify(c => c.SimpleMethod(), 0));
         }
 
-
         [Fact]
         public void TestOneCallExpectVerifyOne_Void()
         {
@@ -72,6 +71,17 @@ namespace Toubiana.Mock.Tests
 
             Assert.Throws<VerifyFailedException>(
                 () => mock.Verify(c => c.Walk(), 0));
+        }
+
+        [Fact]
+        public void VerifyPropertyTest()
+        {
+            var propertyMock = new Mock<IProperty>();
+            propertyMock.Setup(c => c.Name)
+                        .Returns("Toto");
+
+            _ = propertyMock.Object.Name;
+            propertyMock.Verify(c => c.Name, 1);
         }
     }
 }
