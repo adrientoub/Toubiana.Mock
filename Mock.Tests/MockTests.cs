@@ -100,5 +100,15 @@ namespace Toubiana.Mock.Tests
 
             Assert.Equal(8, mock.Object.GetRandomNumber());
         }
+
+        [Fact]
+        public void IncompleteSetupTest()
+        {
+            var mock = new Mock<IRand>();
+            mock.Setup(r => r.GetRandomNumber());
+
+            Assert.Throws<IncompleteSetupException>(
+                () => mock.Object.GetRandomNumber());
+        }
     }
 }

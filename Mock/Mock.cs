@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -28,16 +30,16 @@ namespace Toubiana.Mock
 
         public MockReturn<TResult> Setup<TResult>(Expression<Func<T, TResult>> func)
         {
-            var key = GetMethodName(func);
-            var mockReturn = new MockReturn<TResult>();
-            _setups[key] = mockReturn;
+            var methodName = GetMethodName(func);
+            var mockReturn = new MockReturn<TResult>(methodName);
+            _setups[methodName] = mockReturn;
             return mockReturn;
         }
 
         public void Setup(Expression<Action<T>> func)
         {
-            var key = GetMethodName(func);
-            _setups[key] = new MockReturn();
+            var methodName = GetMethodName(func);
+            _setups[methodName] = new MockReturn();
         }
 
         public void Verify<TResult>(Expression<Func<T, TResult>> func, int count)
@@ -106,7 +108,7 @@ namespace Toubiana.Mock
             return propertyBuilder;
         }
 
-        internal object GetMethodReturnValue(string methodName)
+        internal object? GetMethodReturnValue(string methodName)
         {
             if (_setups.TryGetValue(methodName, out var methodResult))
             {
@@ -131,10 +133,19 @@ namespace Toubiana.Mock
         private T BuildObject()
         {
             var dynamicClassDefinition = CreateDynamicType(_interface);
-            T instance = (T)Activator.CreateInstance(dynamicClassDefinition);
+            T? instance = (T?)Activator.CreateInstance(dynamicClassDefinition);
+            if (instance == null)
+            {
+                throw new MockInternalException($"Could not setup proxy type for base class {_interface.FullName}");
+            }
 
             // Store a reference to the mock inside the object.
             var property = instance.GetType().GetProperty(MockObjectPropertyName);
+            if (property == null)
+            {
+                throw new MockInternalException($"Could not find internal property in proxy class.");
+            }
+
             property.SetValue(instance, this);
 
             return instance;
@@ -174,7 +185,11 @@ namespace Toubiana.Mock
             }
 
             // Create the type.
-            Type dynamicType = typeBuilder.CreateType();
+            Type? dynamicType = typeBuilder.CreateType();
+            if (dynamicType == null)
+            {
+                throw new MockInternalException($"Could not create dynamic type for base class {interfaceToImplement.FullName}");
+            }
 
             return dynamicType;
         }
@@ -187,15 +202,25 @@ namespace Toubiana.Mock
         /// <param name="method">The interface method definition that we need to define a proxy method for.</param>
         private static void DefineProxyMethod(TypeBuilder typeBuilder, PropertyInfo property, MethodInfo method)
         {
+            MethodInfo? getMockReturnMethod = property.GetGetMethod();
+            if (getMockReturnMethod == null)
+            {
+                throw new MockInternalException($"Could not find internal property getter in proxy class.");
+            }
+            MethodInfo? methodToCall = ExtractMethodToCallToRetrieveValue(method);
+            if (methodToCall == null)
+            {
+                throw new MockInternalException($"Could not find method to call to retrieve value.");
+            }
+
             var newAttributes = method.Attributes;
             newAttributes &= ~MethodAttributes.Abstract;
             newAttributes &= ~MethodAttributes.NewSlot;
 
             MethodBuilder methodBuilder = typeBuilder.DefineMethod(method.Name, newAttributes, method.ReturnType, method.GetParameters().Select(x => x.ParameterType).ToArray());
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
-            MethodInfo methodToCall = ExtractMethodToCallToRetrieveValue(method);
             ilGenerator.Emit(OpCodes.Ldarg_0);
-            ilGenerator.Emit(OpCodes.Callvirt, property.GetGetMethod());
+            ilGenerator.Emit(OpCodes.Callvirt, getMockReturnMethod);
             ilGenerator.Emit(OpCodes.Ldstr, method.Name);
             ilGenerator.Emit(OpCodes.Callvirt, methodToCall);
 
@@ -207,7 +232,7 @@ namespace Toubiana.Mock
             ilGenerator.Emit(OpCodes.Ret);
         }
 
-        private static MethodInfo ExtractMethodToCallToRetrieveValue(MethodInfo method)
+        private static MethodInfo? ExtractMethodToCallToRetrieveValue(MethodInfo method)
         {
             string methodName;
             if (method.ReturnType == typeof(void))
@@ -219,7 +244,11 @@ namespace Toubiana.Mock
                 methodName = nameof(GetMethodReturnValue);
             }
 
+#if NET5_0_OR_GREATER
             return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, new Type[] { typeof(string), });
+#else
+            return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(string), }, null);
+#endif
         }
     }
 }

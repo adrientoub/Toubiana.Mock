@@ -3,9 +3,9 @@
   <PropertyGroup>
     <RootNamespace>Toubiana.Mock</RootNamespace>
     <OutputType>Library</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <TargetFrameworks>net48;net6.0</TargetFrameworks>
     <Nullable>enable</Nullable>
+    <LangVersion>9.0</LangVersion>
   </PropertyGroup>
 
 </Project>
