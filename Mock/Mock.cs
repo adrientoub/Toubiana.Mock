@@ -11,7 +11,7 @@ namespace Toubiana.Mock
     {
         private readonly ConcurrentDictionary<string, MockReturn> _setups = new ConcurrentDictionary<string, MockReturn>();
 
-        private readonly Type _type;
+        private readonly Type _interface;
 
         private const string MockObjectPropertyName = "SuperMock";
         private const string MockTypeName = "MyMockTypeName";
@@ -23,17 +23,7 @@ namespace Toubiana.Mock
                 throw new InvalidOperationException();
             }
 
-            _type = typeof(T);
-        }
-
-        public static string GetMethodName<TDelegate>(Expression<TDelegate> func)
-        {
-            if (func.Body is MethodCallExpression methodCallExpression)
-            {
-                return methodCallExpression.Method.Name;
-            }
-
-            return null;
+            _interface = typeof(T);
         }
 
         public MockReturn<TResult> Setup<TResult>(Expression<Func<T, TResult>> func)
@@ -100,7 +90,7 @@ namespace Toubiana.Mock
             return propertyBuilder;
         }
 
-        public object GetReturn(string methodName)
+        public object GetMethodReturnValue(string methodName)
         {
             if (_setups.TryGetValue(methodName, out var methodResult))
             {
@@ -124,7 +114,7 @@ namespace Toubiana.Mock
 
         private T BuildObject()
         {
-            var dynamicClassDefinition = CreateDynamicType();
+            var dynamicClassDefinition = CreateDynamicType(_interface);
             T instance = (T)Activator.CreateInstance(dynamicClassDefinition);
 
             // Store a reference to the mock inside the object.
@@ -134,56 +124,72 @@ namespace Toubiana.Mock
             return instance;
         }
 
+        private static string GetMethodName<TDelegate>(Expression<TDelegate> func)
+        {
+            if (func.Body is MethodCallExpression methodCallExpression)
+            {
+                return methodCallExpression.Method.Name;
+            }
+
+            throw new ExpressionTooComplexException();
+        }
+
         /// <summary>
         /// Creates a dynamic type implementing the mocked interface.
         /// </summary>
-        private Type CreateDynamicType()
+        private static Type CreateDynamicType(Type interfaceToImplement)
         {
             AssemblyName assemblyName = new AssemblyName("DynamicAssembly");
             AssemblyBuilder assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule("DynamicModule");
 
-            // TODO: update the name of the type
             TypeBuilder typeBuilder = moduleBuilder.DefineType(MockTypeName, TypeAttributes.Public);
 
-            typeBuilder.AddInterfaceImplementation(_type);
+            typeBuilder.AddInterfaceImplementation(interfaceToImplement);
             PropertyBuilder propertyBuilder = DefinePropertyToStoreMock(typeBuilder);
 
-            foreach (var method in _type.GetMethods())
+            foreach (var method in interfaceToImplement.GetMethods())
             {
-                var newAttributes = method.Attributes;
-                newAttributes &= ~MethodAttributes.Abstract;
-                newAttributes &= ~MethodAttributes.NewSlot;
-
-                MethodBuilder methodBuilder = typeBuilder.DefineMethod(method.Name, newAttributes, method.ReturnType, method.GetParameters().Select(x => x.ParameterType).ToArray());
-                ILGenerator ilGenerator = methodBuilder.GetILGenerator();
-
-                if (method.ReturnType == typeof(void))
-                {
-                    MethodInfo validateMethodSetup = this.GetType().GetMethod(nameof(ValidateMethodSetup), BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
-
-                    ilGenerator.Emit(OpCodes.Ldarg_0);
-                    ilGenerator.Emit(OpCodes.Callvirt, propertyBuilder.GetGetMethod());
-                    ilGenerator.Emit(OpCodes.Ldstr, method.Name);
-                    ilGenerator.Emit(OpCodes.Callvirt, validateMethodSetup);
-                    ilGenerator.Emit(OpCodes.Ret);
-                }
-                else
-                {
-                    MethodInfo getReturnValue = this.GetType().GetMethod(nameof(GetReturn), BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
-
-                    ilGenerator.Emit(OpCodes.Ldarg_0);
-                    ilGenerator.Emit(OpCodes.Callvirt, propertyBuilder.GetGetMethod());
-                    ilGenerator.Emit(OpCodes.Ldstr, method.Name);
-                    ilGenerator.Emit(OpCodes.Callvirt, getReturnValue);
-                    ilGenerator.Emit(OpCodes.Ret);
-                }
+                DefineProxyMethod(typeBuilder, propertyBuilder, method);
             }
 
             // Create the type.
             Type dynamicType = typeBuilder.CreateType();
 
             return dynamicType;
+        }
+
+        /// <summary>
+        /// Define a proxy method for the given interface method.
+        /// </summary>
+        /// <param name="typeBuilder">The type builder.</param>
+        /// <param name="property">The property where the mock is stored.</param>
+        /// <param name="method">The interface method definition that we need to define a proxy method for.</param>
+        private static void DefineProxyMethod(TypeBuilder typeBuilder, PropertyInfo property, MethodInfo method)
+        {
+            var newAttributes = method.Attributes;
+            newAttributes &= ~MethodAttributes.Abstract;
+            newAttributes &= ~MethodAttributes.NewSlot;
+
+            MethodBuilder methodBuilder = typeBuilder.DefineMethod(method.Name, newAttributes, method.ReturnType, method.GetParameters().Select(x => x.ParameterType).ToArray());
+            ILGenerator ilGenerator = methodBuilder.GetILGenerator();
+            string methodName;
+
+            if (method.ReturnType == typeof(void))
+            {
+                methodName = nameof(ValidateMethodSetup);
+            }
+            else
+            {
+                methodName = nameof(GetMethodReturnValue);
+            }
+
+            MethodInfo methodToCall = typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public, new Type[] { typeof(string), });
+            ilGenerator.Emit(OpCodes.Ldarg_0);
+            ilGenerator.Emit(OpCodes.Callvirt, property.GetGetMethod());
+            ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+            ilGenerator.Emit(OpCodes.Callvirt, methodToCall);
+            ilGenerator.Emit(OpCodes.Ret);
         }
     }
 }

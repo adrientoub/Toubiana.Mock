@@ -43,6 +43,14 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
+        public void ComplexSetupTest()
+        {
+            var mock = new Mock<IBasic>();
+            Assert.Throws<ExpressionTooComplexException>(
+                () => mock.Setup(c => c.SimpleMethod() + c.SimpleMethod()));
+        }
+
+        [Fact]
         public void CallNotSetupMethodWithReturnTest()
         {
             var mockDog = new Mock<IAnimal>();
