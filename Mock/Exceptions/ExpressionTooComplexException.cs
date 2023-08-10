@@ -2,7 +2,7 @@
 
 namespace Toubiana.Mock.Exceptions
 {
-    public class ExpressionTooComplexException : Exception
+    public class ExpressionTooComplexException : BaseMockException
     {
         internal ExpressionTooComplexException()
             : base("The Mock only works with simple expressions.")

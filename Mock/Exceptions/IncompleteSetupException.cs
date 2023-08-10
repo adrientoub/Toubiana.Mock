@@ -2,7 +2,7 @@
 
 namespace Toubiana.Mock.Exceptions
 {
-    public class IncompleteSetupException : Exception
+    public class IncompleteSetupException : BaseMockException
     {
         internal IncompleteSetupException(string methodName)
             : base($"Setup of method '{methodName}' was not completed.")

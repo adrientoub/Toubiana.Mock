@@ -2,7 +2,7 @@
 
 namespace Toubiana.Mock.Exceptions
 {
-    public class MethodNotSetupException : Exception
+    public class MethodNotSetupException : BaseMockException
     {
         internal MethodNotSetupException(string methodName)
             : base($"Method {methodName} is not setup")

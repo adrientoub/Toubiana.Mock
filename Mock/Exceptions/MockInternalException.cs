@@ -2,7 +2,7 @@
 
 namespace Toubiana.Mock.Exceptions
 {
-    public class MockInternalException : Exception
+    public class MockInternalException : BaseMockException
     {
         internal MockInternalException(string message)
             : base(message)
