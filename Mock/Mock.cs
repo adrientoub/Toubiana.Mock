@@ -193,8 +193,23 @@ namespace Toubiana.Mock
 
             MethodBuilder methodBuilder = typeBuilder.DefineMethod(method.Name, newAttributes, method.ReturnType, method.GetParameters().Select(x => x.ParameterType).ToArray());
             ILGenerator ilGenerator = methodBuilder.GetILGenerator();
-            string methodName;
+            MethodInfo methodToCall = ExtractMethodToCallToRetrieveValue(method);
+            ilGenerator.Emit(OpCodes.Ldarg_0);
+            ilGenerator.Emit(OpCodes.Callvirt, property.GetGetMethod());
+            ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+            ilGenerator.Emit(OpCodes.Callvirt, methodToCall);
 
+            // Unbox structs.
+            if (method.ReturnType != typeof(void) && method.ReturnType.IsValueType)
+            {
+                ilGenerator.Emit(OpCodes.Unbox_Any, method.ReturnType);
+            }
+            ilGenerator.Emit(OpCodes.Ret);
+        }
+
+        private static MethodInfo ExtractMethodToCallToRetrieveValue(MethodInfo method)
+        {
+            string methodName;
             if (method.ReturnType == typeof(void))
             {
                 methodName = nameof(ValidateMethodSetup);
@@ -204,12 +219,7 @@ namespace Toubiana.Mock
                 methodName = nameof(GetMethodReturnValue);
             }
 
-            MethodInfo methodToCall = typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, new Type[] { typeof(string), });
-            ilGenerator.Emit(OpCodes.Ldarg_0);
-            ilGenerator.Emit(OpCodes.Callvirt, property.GetGetMethod());
-            ilGenerator.Emit(OpCodes.Ldstr, method.Name);
-            ilGenerator.Emit(OpCodes.Callvirt, methodToCall);
-            ilGenerator.Emit(OpCodes.Ret);
+            return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, new Type[] { typeof(string), });
         }
     }
 }

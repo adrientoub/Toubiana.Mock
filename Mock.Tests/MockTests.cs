@@ -77,5 +77,28 @@ namespace Toubiana.Mock.Tests
             Assert.Throws<MethodNotSetupException>(
                 () => mockDog.Object.Walk());
         }
+
+        [Fact]
+        public void ConvertTest()
+        {
+            var mock = new Mock<IConvert>();
+            mock.Setup(c => c.Convert(1f))
+                .Returns("1");
+            mock.Setup(c => c.ToFloat(50, "", new object()))
+                .Returns(72f);
+
+            Assert.Equal("1", mock.Object.Convert(1f));
+            Assert.Equal(72f, mock.Object.ToFloat(50, "", new object()));
+        }
+
+        [Fact]
+        public void RandTest()
+        {
+            var mock = new Mock<IRand>();
+            mock.Setup(r => r.GetRandomNumber())
+                .Returns(8);
+
+            Assert.Equal(8, mock.Object.GetRandomNumber());
+        }
     }
 }
