@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -11,7 +12,7 @@ namespace Toubiana.Mock
     public class Mock<T>
         where T : class
     {
-        private readonly ConcurrentDictionary<string, MockReturn> _setups = new ConcurrentDictionary<string, MockReturn>();
+        private readonly ConcurrentDictionary<string, MultiSetupMethodReturn> _setups = new ConcurrentDictionary<string, MultiSetupMethodReturn>();
 
         private readonly Type _interface;
         private T? _object = default;
@@ -32,22 +33,39 @@ namespace Toubiana.Mock
         public MockReturn<TResult> Setup<TResult>(Expression<Func<T, TResult>> func)
         {
             var methodName = GetMethodName(func);
-            var mockReturn = new MockReturn<TResult>(methodName);
-            _setups[methodName] = mockReturn;
+            var methodArguments = GetMethodSetupArguments(func);
+            if (!_setups.TryGetValue(methodName, out var multiSetupMethodReturn))
+            {
+                multiSetupMethodReturn = new MultiSetupMethodReturn(methodName);
+                _setups[methodName] = multiSetupMethodReturn;
+            }
+
+            var mockReturn = new MockReturn<TResult>(methodName, methodArguments);
+            multiSetupMethodReturn.AddSetup(mockReturn);
             return mockReturn;
         }
 
-        public void Setup(Expression<Action<T>> func)
+        public MockReturn Setup(Expression<Action<T>> func)
         {
             var methodName = GetMethodName(func);
-            _setups[methodName] = new MockReturn();
+            var methodArguments = GetMethodSetupArguments(func);
+            if (!_setups.TryGetValue(methodName, out var multiSetupMethodReturn))
+            {
+                multiSetupMethodReturn = new MultiSetupMethodReturn(methodName);
+                _setups[methodName] = multiSetupMethodReturn;
+            }
+
+            var mockReturn = new MockReturn(methodName, methodArguments);
+            multiSetupMethodReturn.AddSetup(mockReturn);
+            return mockReturn;
         }
 
         public void Verify<TResult>(Expression<Func<T, TResult>> func, int count)
         {
             var key = GetMethodName(func);
-            if (_setups.TryGetValue(key, out var mockReturn))
+            if (_setups.TryGetValue(key, out var multiSetupMethodReturn))
             {
+                var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>());
                 if (mockReturn.CallCount != count)
                 {
                     throw new VerifyFailedException(key, count, mockReturn.CallCount);
@@ -62,8 +80,9 @@ namespace Toubiana.Mock
         public void Verify(Expression<Action<T>> func, int count)
         {
             var key = GetMethodName(func);
-            if (_setups.TryGetValue(key, out var mockReturn))
+            if (_setups.TryGetValue(key, out var multiSetupMethodReturn))
             {
+                var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>());
                 if (mockReturn.CallCount != count)
                 {
                     throw new VerifyFailedException(key, count, mockReturn.CallCount);
@@ -87,57 +106,27 @@ namespace Toubiana.Mock
             }
         }
 
-        private static PropertyBuilder DefinePropertyToStoreMock(TypeBuilder typeBuilder)
+        internal object? GetMethodReturnValueInternal(string methodName, params object?[] parameters)
         {
-            var propertyBuilder = typeBuilder.DefineProperty(MockObjectPropertyName, PropertyAttributes.None, typeof(Mock<T>), new Type[0]);
-
-            // Define field
-            FieldBuilder fieldBuilder = typeBuilder.DefineField("m_" + MockObjectPropertyName, typeof(Mock<T>), FieldAttributes.Private);
-            // Define "getter" for the property
-            MethodBuilder getterBuilder = typeBuilder.DefineMethod("get_" + MockObjectPropertyName,
-                                                MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
-                                                typeof(Mock<T>),
-                                                Type.EmptyTypes);
-            ILGenerator getterIL = getterBuilder.GetILGenerator();
-            getterIL.Emit(OpCodes.Ldarg_0);
-            getterIL.Emit(OpCodes.Ldfld, fieldBuilder);
-            getterIL.Emit(OpCodes.Ret);
-
-            // Define "setter" for the property
-            MethodBuilder setterBuilder = typeBuilder.DefineMethod("set_" + MockObjectPropertyName,
-                                                MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
-                                                null,
-                                                new Type[] { typeof(Mock<T>) });
-            ILGenerator setterIL = setterBuilder.GetILGenerator();
-            setterIL.Emit(OpCodes.Ldarg_0);
-            setterIL.Emit(OpCodes.Ldarg_1);
-            setterIL.Emit(OpCodes.Stfld, fieldBuilder);
-            setterIL.Emit(OpCodes.Ret);
-
-            propertyBuilder.SetGetMethod(getterBuilder);
-            propertyBuilder.SetSetMethod(setterBuilder);
-            return propertyBuilder;
-        }
-
-        internal object? GetMethodReturnValue(string methodName)
-        {
-            if (_setups.TryGetValue(methodName, out var methodResult))
+            if (_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
-                methodResult.Call();
-                return methodResult.GetResult();
+                var mockReturn = multiMethodSetup.GetSetup(parameters);
+                mockReturn.Call();
+                return mockReturn.GetResult();
             }
 
             throw new MethodNotSetupException(methodName);
         }
 
         // Called by the mocked object to validate that the method was setup when the method returns void.
-        internal void ValidateMethodSetup(string methodName)
+        internal void ValidateMethodSetupInternal(string methodName, params object?[] parameters)
         {
-            if (!_setups.TryGetValue(methodName, out var mockReturn))
+            if (!_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
                 throw new MethodNotSetupException(methodName);
             }
 
+            var mockReturn = multiMethodSetup.GetSetup(parameters);
             mockReturn.Call();
         }
 
@@ -174,6 +163,90 @@ namespace Toubiana.Mock
             }
 
             throw new ExpressionTooComplexException();
+        }
+
+        private static List<ItMatcher> GetMethodSetupArguments<TDelegate>(Expression<TDelegate> func)
+        {
+            if (func.Body is MethodCallExpression methodCallExpression)
+            {
+                var matchers = new List<ItMatcher>();
+                var args = methodCallExpression.Arguments;
+                foreach (Expression? arg in args)
+                {
+                    if (arg is MethodCallExpression methodCall)
+                    {
+                        if (ValidateItMatcher(methodCall, out var matcher))
+                        {
+                            matchers.Add(matcher);
+                        }
+                        else
+                        {
+                            throw new ExpressionTooComplexException();
+                        }
+                    }
+                    else if (arg is ConstantExpression constantExpression)
+                    {
+                        matchers.Add(new ItValueMatcher(constantExpression.Value));
+                    }
+                    else if (arg is NewExpression newExpression)
+                    {
+                        var objectMember = Expression.Convert(newExpression, typeof(object));
+                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
+                        var value = getterLambda.Compile().DynamicInvoke();
+
+                        matchers.Add(new ItValueMatcher(value));
+                    }
+                    else if (arg is MemberExpression memberExpression)
+                    {
+                        var objectMember = Expression.Convert(memberExpression, typeof(object));
+                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
+                        var value = getterLambda.Compile().DynamicInvoke();
+
+                        matchers.Add(new ItValueMatcher(value));
+                    }
+                    else if (arg is UnaryExpression unaryExpression)
+                    {
+                        if (unaryExpression.NodeType == ExpressionType.Convert && ValidateItMatcher(unaryExpression.Operand, out ItMatcher? matcherFound))
+                        {
+                            matchers.Add(matcherFound);
+                        }
+                        else
+                        {
+                            var objectMember = Expression.Convert(unaryExpression, typeof(object));
+                            var getterLambda = Expression.Lambda<Func<object>>(objectMember);
+                            var value = getterLambda.Compile().DynamicInvoke();
+
+                            matchers.Add(new ItValueMatcher(value));
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception($"Unsupported expression type: {arg.GetType()}");
+                    }
+                }
+                return matchers;
+            }
+            else if (func.Body is MemberExpression memberExpression)
+            {
+                return new List<ItMatcher>();
+            }
+
+            throw new ExpressionTooComplexException();
+        }
+
+        private static bool ValidateItMatcher(Expression expression, out ItMatcher? matcherFound)
+        {
+            if (expression is MethodCallExpression methodCall)
+            {
+                if (methodCall.Method.Name == nameof(It.IsAny) && methodCall.Method.DeclaringType == typeof(It))
+                {
+                    matcherFound = new ItAnyMatcher(methodCall.Method.ReturnType);
+                    return true;
+                }
+            }
+
+            matcherFound = default;
+            return false;
         }
 
         /// <summary>
@@ -233,6 +306,14 @@ namespace Toubiana.Mock
             ilGenerator.Emit(OpCodes.Ldarg_0);
             ilGenerator.Emit(OpCodes.Callvirt, getMockReturnMethod);
             ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+            for (int i = 0; i < method.GetParameters().Length; i++)
+            {
+                ilGenerator.Emit(OpCodes.Ldarg, i + 1);
+                if (method.GetParameters()[i].ParameterType.IsValueType)
+                {
+                    ilGenerator.Emit(OpCodes.Box, method.GetParameters()[i].ParameterType);
+                }
+            }
             ilGenerator.Emit(OpCodes.Callvirt, methodToCall);
 
             // Unbox structs.
@@ -241,6 +322,38 @@ namespace Toubiana.Mock
                 ilGenerator.Emit(OpCodes.Unbox_Any, method.ReturnType);
             }
             ilGenerator.Emit(OpCodes.Ret);
+        }
+
+        private static PropertyBuilder DefinePropertyToStoreMock(TypeBuilder typeBuilder)
+        {
+            var propertyBuilder = typeBuilder.DefineProperty(MockObjectPropertyName, PropertyAttributes.None, typeof(Mock<T>), new Type[0]);
+
+            // Define field
+            FieldBuilder fieldBuilder = typeBuilder.DefineField("m_" + MockObjectPropertyName, typeof(Mock<T>), FieldAttributes.Private);
+            // Define "getter" for the property
+            MethodBuilder getterBuilder = typeBuilder.DefineMethod("get_" + MockObjectPropertyName,
+                                                MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                                                typeof(Mock<T>),
+                                                Type.EmptyTypes);
+            ILGenerator getterIL = getterBuilder.GetILGenerator();
+            getterIL.Emit(OpCodes.Ldarg_0);
+            getterIL.Emit(OpCodes.Ldfld, fieldBuilder);
+            getterIL.Emit(OpCodes.Ret);
+
+            // Define "setter" for the property
+            MethodBuilder setterBuilder = typeBuilder.DefineMethod("set_" + MockObjectPropertyName,
+                                                MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                                                null,
+                                                new Type[] { typeof(Mock<T>) });
+            ILGenerator setterIL = setterBuilder.GetILGenerator();
+            setterIL.Emit(OpCodes.Ldarg_0);
+            setterIL.Emit(OpCodes.Ldarg_1);
+            setterIL.Emit(OpCodes.Stfld, fieldBuilder);
+            setterIL.Emit(OpCodes.Ret);
+
+            propertyBuilder.SetGetMethod(getterBuilder);
+            propertyBuilder.SetSetMethod(setterBuilder);
+            return propertyBuilder;
         }
 
         private static MethodInfo? ExtractMethodToCallToRetrieveValue(MethodInfo method)
@@ -255,11 +368,62 @@ namespace Toubiana.Mock
                 methodName = nameof(GetMethodReturnValue);
             }
 
+            Type[] types = new Type[method.GetParameters().Length + 1];
+            types[0] = typeof(string);
+            for (int i = 0; i < method.GetParameters().Length; i++)
+            {
+                types[i + 1] = typeof(object);
+            }
+
 #if NET5_0_OR_GREATER
-            return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, new Type[] { typeof(string), });
+            return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, types);
 #else
-            return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, null, new Type[] { typeof(string), }, null);
+            return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, null, types, null);
 #endif
         }
+
+        #region
+
+        internal void ValidateMethodSetup(string methodName, object param1, object param2, object param3)
+        {
+            ValidateMethodSetupInternal(methodName, param1, param2, param3);
+        }
+
+        internal void ValidateMethodSetup(string methodName, object param1, object param2)
+        {
+            ValidateMethodSetupInternal(methodName, param1, param2);
+        }
+
+        internal void ValidateMethodSetup(string methodName, object param1)
+        {
+            ValidateMethodSetupInternal(methodName, param1);
+        }
+
+        internal void ValidateMethodSetup(string methodName)
+        {
+            ValidateMethodSetupInternal(methodName);
+        }
+
+        internal object? GetMethodReturnValue(string methodName, object param1, object param2, object param3)
+        {
+            return GetMethodReturnValueInternal(methodName, param1, param2, param3);
+        }
+
+        internal object? GetMethodReturnValue(string methodName, object param1, object param2)
+        {
+            return GetMethodReturnValueInternal(methodName, param1, param2);
+        }
+
+        internal object? GetMethodReturnValue(string methodName, object param1)
+        {
+            return GetMethodReturnValueInternal(methodName, param1);
+        }
+
+        internal object? GetMethodReturnValue(string methodName)
+        {
+            return GetMethodReturnValueInternal(methodName);
+        }
+
+        #endregion
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Toubiana.Mock.Exceptions;
 
@@ -6,15 +7,43 @@ namespace Toubiana.Mock
 {
     public class MockReturn
     {
+        protected readonly string _methodName;
+        private readonly List<ItMatcher> _argumentMatchers;
+
         internal int CallCount { get; private set; } = 0;
 
-        internal MockReturn()
+        internal MockReturn(string methodName, List<ItMatcher> argumentMatchers)
         {
+            _methodName = methodName;
+            _argumentMatchers = argumentMatchers;
         }
 
         internal void Call()
         {
             CallCount++;
+        }
+
+        internal bool DoesMatch(IList<object?> actualArguments)
+        {
+            if (actualArguments.Count != _argumentMatchers.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < actualArguments.Count; i++)
+            {
+                if (!_argumentMatchers[i].IsMatch(actualArguments[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        internal string MethodDefinitionToString()
+        {
+            return $"{_methodName}({string.Join(", ", _argumentMatchers)})";
         }
 
         internal virtual object? GetResult()
@@ -25,11 +54,9 @@ namespace Toubiana.Mock
 
     public class MockReturn<TResult> : MockReturn
     {
-        private readonly string _methodName;
-
-        internal MockReturn(string methodName)
+        internal MockReturn(string methodName, List<ItMatcher> argumentMatchers)
+            : base(methodName, argumentMatchers)
         {
-            _methodName = methodName;
         }
 
         private TResult? _result = default;
@@ -40,12 +67,6 @@ namespace Toubiana.Mock
         {
             _result = result;
             _isSetup = true;
-        }
-
-        public void ReturnsAsync(TResult result)
-        {
-            Returns(result);
-            _isAsync = true;
         }
 
         internal override object? GetResult()

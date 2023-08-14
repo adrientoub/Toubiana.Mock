@@ -1,5 +1,6 @@
 using Toubiana.Mock.Exceptions;
 using Toubiana.Mock.Tests.Interfaces;
+using Toubiana.Mock.Tests.Types;
 using Xunit;
 
 namespace Toubiana.Mock.Tests
@@ -79,16 +80,48 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
-        public void ConvertTest()
+        public void SimpleConvertTest()
         {
             var mock = new Mock<IConvert>();
             mock.Setup(c => c.Convert(1f))
                 .Returns("1");
-            mock.Setup(c => c.ToFloat(50, "", new object()))
-                .Returns(72f);
 
             Assert.Equal("1", mock.Object.Convert(1f));
-            Assert.Equal(72f, mock.Object.ToFloat(50, "", new object()));
+        }
+
+        [Fact]
+        public void ToFloatConvertWithNewInSetupTest()
+        {
+            var mock = new Mock<IConvert>();
+            var x = new object();
+
+            // Uses new matcher
+            mock.Setup(c => c.ToFloat(50, "", new MyValueType(50)))
+                .Returns(72f);
+
+            Assert.Equal(72f, mock.Object.ToFloat(50, "", new MyValueType(50)));
+        }
+
+        [Fact]
+        public void ToFloatConvertTest()
+        {
+            var mock = new Mock<IConvert>();
+            var x = new object();
+            mock.Setup(c => c.ToFloat(50, "", x))
+                .Returns(72f);
+
+            Assert.Equal(72f, mock.Object.ToFloat(50, "", x));
+        }
+
+        [Fact]
+        public void ConvertVariableTest()
+        {
+            var mock = new Mock<IConvert>();
+            var x = 1f;
+            mock.Setup(c => c.Convert(x))
+                .Returns("1");
+
+            Assert.Equal("1", mock.Object.Convert(1f));
         }
 
         [Fact]
