@@ -135,6 +135,15 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
+        public void MockBigParameterList()
+        {
+            var mock = new Mock<IBigParameterList>();
+            mock.Setup(c => c.MethodWithBigParameterList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18))
+                .Returns(18);
+            mock.Object.MethodWithBigParameterList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
+        }
+
+        [Fact]
         public void RandTest()
         {
             var mock = new Mock<IRand>();

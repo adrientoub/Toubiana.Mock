@@ -143,7 +143,7 @@ namespace Toubiana.Mock
             }
         }
 
-        internal object? GetMethodReturnValueInternal(string methodName, params object?[] parameters)
+        internal object? GetMethodReturnValue(string methodName, params object?[] parameters)
         {
             if (_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
@@ -156,7 +156,7 @@ namespace Toubiana.Mock
         }
 
         // Called by the mocked object to validate that the method was setup when the method returns void.
-        internal void ValidateMethodSetupInternal(string methodName, params object?[] parameters)
+        internal void ValidateMethodSetup(string methodName, params object?[] parameters)
         {
             if (!_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
@@ -374,13 +374,27 @@ namespace Toubiana.Mock
             ilGenerator.Emit(OpCodes.Ldarg_0);
             ilGenerator.Emit(OpCodes.Callvirt, getMockReturnMethod);
             ilGenerator.Emit(OpCodes.Ldstr, method.Name);
+
+            // Create an array of objects to pass to the params parameter of the method.
+            // Store the size of the array on the stack and call new array of object.
+            ilGenerator.Emit(OpCodes.Ldc_I4, method.GetParameters().Length);
+            ilGenerator.Emit(OpCodes.Newarr, typeof(object));
             for (int i = 0; i < method.GetParameters().Length; i++)
             {
+                // Duplicate the array reference on the stack.
+                ilGenerator.Emit(OpCodes.Dup);
+
+                // Push the index of the array where to store the value on the stack.
+                ilGenerator.Emit(OpCodes.Ldc_I4, i);
+                // Push the value to store on the stack.
                 ilGenerator.Emit(OpCodes.Ldarg, i + 1);
+                // Box value types.
                 if (method.GetParameters()[i].ParameterType.IsValueType)
                 {
                     ilGenerator.Emit(OpCodes.Box, method.GetParameters()[i].ParameterType);
                 }
+                // Store the value in the array.
+                ilGenerator.Emit(OpCodes.Stelem_Ref);
             }
             ilGenerator.Emit(OpCodes.Callvirt, methodToCall);
 
@@ -436,12 +450,7 @@ namespace Toubiana.Mock
                 methodName = nameof(GetMethodReturnValue);
             }
 
-            Type[] types = new Type[method.GetParameters().Length + 1];
-            types[0] = typeof(string);
-            for (int i = 0; i < method.GetParameters().Length; i++)
-            {
-                types[i + 1] = typeof(object);
-            }
+            Type[] types = new Type[] { typeof(string), typeof(object[]), };
 
 #if NET5_0_OR_GREATER
             return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, types);
@@ -449,48 +458,5 @@ namespace Toubiana.Mock
             return typeof(Mock<T>).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, null, types, null);
 #endif
         }
-
-        #region
-
-        internal void ValidateMethodSetup(string methodName, object param1, object param2, object param3)
-        {
-            ValidateMethodSetupInternal(methodName, param1, param2, param3);
-        }
-
-        internal void ValidateMethodSetup(string methodName, object param1, object param2)
-        {
-            ValidateMethodSetupInternal(methodName, param1, param2);
-        }
-
-        internal void ValidateMethodSetup(string methodName, object param1)
-        {
-            ValidateMethodSetupInternal(methodName, param1);
-        }
-
-        internal void ValidateMethodSetup(string methodName)
-        {
-            ValidateMethodSetupInternal(methodName);
-        }
-
-        internal object? GetMethodReturnValue(string methodName, object param1, object param2, object param3)
-        {
-            return GetMethodReturnValueInternal(methodName, param1, param2, param3);
-        }
-
-        internal object? GetMethodReturnValue(string methodName, object param1, object param2)
-        {
-            return GetMethodReturnValueInternal(methodName, param1, param2);
-        }
-
-        internal object? GetMethodReturnValue(string methodName, object param1)
-        {
-            return GetMethodReturnValueInternal(methodName, param1);
-        }
-
-        internal object? GetMethodReturnValue(string methodName)
-        {
-            return GetMethodReturnValueInternal(methodName);
-        }
-        #endregion
     }
 }
