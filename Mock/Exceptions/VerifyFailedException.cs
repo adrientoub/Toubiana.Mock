@@ -1,11 +1,9 @@
-﻿using System;
-
-namespace Toubiana.Mock.Exceptions
+﻿namespace Toubiana.Mock.Exceptions
 {
     public class VerifyFailedException : BaseMockException
     {
-        internal VerifyFailedException(string methodName, int expectedCount, int actualCount)
-            : base($"Verify of {methodName} failed. Expected {expectedCount} calls, got {actualCount}.")
+        internal VerifyFailedException(string methodName, Times times, int actualCount)
+            : base($"Verify of {methodName} failed. Expected {times} calls, got {actualCount}.")
         {
         }
     }

@@ -13,7 +13,7 @@ namespace Toubiana.Mock.Tests
             mock.Setup(c => c.SimpleMethod())
                 .Returns("toto");
 
-            mock.Verify(c => c.SimpleMethod(), 0);
+            mock.Verify(c => c.SimpleMethod(), Times.Never());
         }
 
         [Fact]
@@ -22,7 +22,7 @@ namespace Toubiana.Mock.Tests
             var mock = new Mock<IBasic>();
 
             Assert.Throws<MethodNotSetupException>(
-                () => mock.Verify(c => c.SimpleMethod(), 0));
+                () => mock.Verify(c => c.SimpleMethod(), Times.Never()));
         }
 
         [Fact]
@@ -34,7 +34,7 @@ namespace Toubiana.Mock.Tests
 
             mock.Object.SimpleMethod();
 
-            mock.Verify(c => c.SimpleMethod(), 1);
+            mock.Verify(c => c.SimpleMethod(), Times.Once());
         }
 
         [Fact]
@@ -47,7 +47,7 @@ namespace Toubiana.Mock.Tests
             mock.Object.SimpleMethod();
 
             Assert.Throws<VerifyFailedException>(
-                () => mock.Verify(c => c.SimpleMethod(), 0));
+                () => mock.Verify(c => c.SimpleMethod(), Times.Never()));
         }
 
         [Fact]
@@ -58,7 +58,7 @@ namespace Toubiana.Mock.Tests
 
             mock.Object.Walk();
 
-            mock.Verify(c => c.Walk(), 1);
+            mock.Verify(c => c.Walk(), Times.Once());
         }
 
         [Fact]
@@ -70,7 +70,7 @@ namespace Toubiana.Mock.Tests
             mock.Object.Walk();
 
             Assert.Throws<VerifyFailedException>(
-                () => mock.Verify(c => c.Walk(), 0));
+                () => mock.Verify(c => c.Walk(), Times.Never()));
         }
 
         [Fact]
@@ -81,7 +81,7 @@ namespace Toubiana.Mock.Tests
                         .Returns("Toto");
 
             _ = propertyMock.Object.Name;
-            propertyMock.Verify(c => c.Name, 1);
+            propertyMock.Verify(c => c.Name, Times.Once());
         }
     }
 }

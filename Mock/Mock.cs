@@ -87,15 +87,15 @@ namespace Toubiana.Mock
             return mockReturn;
         }
 
-        public void Verify<TResult>(Expression<Func<T, TResult>> func, int count)
+        public void Verify<TResult>(Expression<Func<T, TResult>> func, Times times)
         {
             var key = GetMethodName(func);
             if (_setups.TryGetValue(key, out var multiSetupMethodReturn))
             {
                 var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>());
-                if (mockReturn.CallCount != count)
+                if (!times.Match(mockReturn.CallCount))
                 {
-                    throw new VerifyFailedException(key, count, mockReturn.CallCount);
+                    throw new VerifyFailedException(key, times, mockReturn.CallCount);
                 }
             }
             else
@@ -104,15 +104,15 @@ namespace Toubiana.Mock
             }
         }
 
-        public void Verify(Expression<Action<T>> func, int count)
+        public void Verify(Expression<Action<T>> func, Times times)
         {
             var key = GetMethodName(func);
             if (_setups.TryGetValue(key, out var multiSetupMethodReturn))
             {
                 var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>());
-                if (mockReturn.CallCount != count)
+                if (!times.Match(mockReturn.CallCount))
                 {
-                    throw new VerifyFailedException(key, count, mockReturn.CallCount);
+                    throw new VerifyFailedException(key, times, mockReturn.CallCount);
                 }
             }
             else
