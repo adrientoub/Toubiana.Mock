@@ -176,7 +176,7 @@ namespace Toubiana.Mock
                     {
                         if (ValidateItMatcher(methodCall, out var matcher))
                         {
-                            matchers.Add(matcher);
+                            matchers.Add(matcher!);
                         }
                         else
                         {
@@ -199,7 +199,7 @@ namespace Toubiana.Mock
                     {
                         if (unaryExpression.NodeType == ExpressionType.Convert && ValidateItMatcher(unaryExpression.Operand, out ItMatcher? matcherFound))
                         {
-                            matchers.Add(matcherFound);
+                            matchers.Add(matcherFound!);
                         }
                         else
                         {
@@ -221,14 +221,19 @@ namespace Toubiana.Mock
             throw new ExpressionTooComplexException();
         }
 
-        private static object RunExpression(Expression expression)
+        private static object? RunExpression(Expression expression)
         {
             var objectMember = Expression.Convert(expression, typeof(object));
             var getterLambda = Expression.Lambda<Func<object>>(objectMember);
             return getterLambda.Compile().DynamicInvoke();
         }
 
-        private static bool ValidateItMatcher(Expression expression, out ItMatcher? matcherFound)
+        private static bool ValidateItMatcher(
+            Expression expression,
+#if NET5_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+#endif
+            out ItMatcher? matcherFound)
         {
             if (expression is MethodCallExpression methodCall)
             {
@@ -254,12 +259,18 @@ namespace Toubiana.Mock
                             // Create a generic class instance of ItFuncMatcher<T>.
                             var typeToCreate = typeof(ItFuncMatcher<>).MakeGenericType(methodCall.Method.ReturnType);
                             var genericClassInstance = Activator.CreateInstance(typeToCreate, runArgument);
+                            if (genericClassInstance == null)
+                            {
+                                throw new MockInternalException($"Could not create generic class instance of {typeToCreate.FullName}");
+                            }
+
                             matcherFound = (ItMatcher)genericClassInstance;
                         }
                         else
                         {
                             matcherFound = new ItValueMatcher(RunExpression(methodCall.Arguments[0]));
                         }
+
                         return true;
                     }
                 }

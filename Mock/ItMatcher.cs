@@ -58,7 +58,7 @@ namespace Toubiana.Mock
 
         public override bool IsMatch(object? value)
         {
-            return value is T v && (bool)_matcher.DynamicInvoke(v);
+            return value is T v && (bool)_matcher.DynamicInvoke(v)!;
         }
 
         public override string ToString()
