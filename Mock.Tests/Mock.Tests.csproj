@@ -19,6 +19,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+
+    <!-- Needed to run tests on Linux -->
+    <PackageReference Include="Microsoft.TestPlatform.ObjectModel" Version="17.5.0" />
   </ItemGroup>
 
   <ItemGroup>
