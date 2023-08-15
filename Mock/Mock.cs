@@ -104,6 +104,11 @@ namespace Toubiana.Mock
             }
         }
 
+        public void Verify<TResult>(Expression<Func<T, TResult>> func, Func<Times> funcTimes)
+        {
+            Verify(func, funcTimes());
+        }
+
         public void Verify(Expression<Action<T>> func, Times times)
         {
             var key = GetMethodName(func);
@@ -119,6 +124,11 @@ namespace Toubiana.Mock
             {
                 throw new MethodNotSetupException(key);
             }
+        }
+
+        public void Verify(Expression<Action<T>> func, Func<Times> funcTimes)
+        {
+            Verify(func, funcTimes());
         }
 
         public T Object
@@ -481,7 +491,6 @@ namespace Toubiana.Mock
         {
             return GetMethodReturnValueInternal(methodName);
         }
-
         #endregion
     }
 }

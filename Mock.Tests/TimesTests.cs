@@ -21,6 +21,35 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
+        public void Verify_UseFuncTest()
+        {
+            Mock<IBasic> mock = GetSetupMock();
+            mock.Verify(c => c.SimpleMethod(), Times.Never);
+            mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce);
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.AtLeastOnce));
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.Once));
+
+            mock.Object.SimpleMethod();
+
+            mock.Verify(c => c.SimpleMethod(), Times.Once);
+            mock.Verify(c => c.SimpleMethod(), Times.AtLeastOnce);
+            mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce);
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.Never));
+
+            mock.Object.SimpleMethod();
+            mock.Verify(c => c.SimpleMethod(), Times.AtLeastOnce);
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce));
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.Once));
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.Never));
+        }
+
+        [Fact]
         public void AtMostTest()
         {
             Mock<IBasic> mock = GetSetupMock();
