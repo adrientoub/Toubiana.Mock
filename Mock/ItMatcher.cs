@@ -46,4 +46,24 @@ namespace Toubiana.Mock
             return _value?.ToString() ?? "null";
         }
     }
+
+    internal class ItFuncMatcher<T> : ItMatcher
+    {
+        private readonly Delegate _matcher;
+
+        public ItFuncMatcher(Delegate match)
+        {
+            _matcher = match;
+        }
+
+        public override bool IsMatch(object? value)
+        {
+            return value is T v && (bool)_matcher.DynamicInvoke(v);
+        }
+
+        public override string ToString()
+        {
+            return _matcher?.ToString() ?? "null";
+        }
+    }
 }

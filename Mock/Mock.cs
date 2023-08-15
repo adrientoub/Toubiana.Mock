@@ -170,8 +170,7 @@ namespace Toubiana.Mock
             if (func.Body is MethodCallExpression methodCallExpression)
             {
                 var matchers = new List<ItMatcher>();
-                var args = methodCallExpression.Arguments;
-                foreach (Expression? arg in args)
+                foreach (Expression? arg in methodCallExpression.Arguments)
                 {
                     if (arg is MethodCallExpression methodCall)
                     {
@@ -190,19 +189,11 @@ namespace Toubiana.Mock
                     }
                     else if (arg is NewExpression newExpression)
                     {
-                        var objectMember = Expression.Convert(newExpression, typeof(object));
-                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
-                        var value = getterLambda.Compile().DynamicInvoke();
-
-                        matchers.Add(new ItValueMatcher(value));
+                        matchers.Add(new ItValueMatcher(RunExpression(newExpression)));
                     }
                     else if (arg is MemberExpression memberExpression)
                     {
-                        var objectMember = Expression.Convert(memberExpression, typeof(object));
-                        var getterLambda = Expression.Lambda<Func<object>>(objectMember);
-                        var value = getterLambda.Compile().DynamicInvoke();
-
-                        matchers.Add(new ItValueMatcher(value));
+                        matchers.Add(new ItValueMatcher(RunExpression(memberExpression)));
                     }
                     else if (arg is UnaryExpression unaryExpression)
                     {
@@ -212,11 +203,7 @@ namespace Toubiana.Mock
                         }
                         else
                         {
-                            var objectMember = Expression.Convert(unaryExpression, typeof(object));
-                            var getterLambda = Expression.Lambda<Func<object>>(objectMember);
-                            var value = getterLambda.Compile().DynamicInvoke();
-
-                            matchers.Add(new ItValueMatcher(value));
+                            matchers.Add(new ItValueMatcher(RunExpression(unaryExpression)));
                         }
                     }
                     else
@@ -226,7 +213,7 @@ namespace Toubiana.Mock
                 }
                 return matchers;
             }
-            else if (func.Body is MemberExpression memberExpression)
+            else if (func.Body is MemberExpression) // Property getter do not have arguments.
             {
                 return new List<ItMatcher>();
             }
@@ -234,14 +221,47 @@ namespace Toubiana.Mock
             throw new ExpressionTooComplexException();
         }
 
+        private static object RunExpression(Expression expression)
+        {
+            var objectMember = Expression.Convert(expression, typeof(object));
+            var getterLambda = Expression.Lambda<Func<object>>(objectMember);
+            return getterLambda.Compile().DynamicInvoke();
+        }
+
         private static bool ValidateItMatcher(Expression expression, out ItMatcher? matcherFound)
         {
             if (expression is MethodCallExpression methodCall)
             {
-                if (methodCall.Method.Name == nameof(It.IsAny) && methodCall.Method.DeclaringType == typeof(It))
+                var method = methodCall.Method;
+                if (method.DeclaringType == typeof(It))
                 {
-                    matcherFound = new ItAnyMatcher(methodCall.Method.ReturnType);
-                    return true;
+                    if (method.Name == nameof(It.IsAny))
+                    {
+                        matcherFound = new ItAnyMatcher(method.ReturnType);
+                        return true;
+                    }
+
+                    if (method.Name == nameof(It.Is))
+                    {
+                        var methodFirstParameter = method.GetParameters()[0];
+
+                        // Dirty: Check if we call the "Delegate" overload by parameter name.
+                        if (methodFirstParameter.Name == "matcher")
+                        {
+                            // Run argument to convert it to a Delegate.
+                            var runArgument = RunExpression(methodCall.Arguments[0]);
+
+                            // Create a generic class instance of ItFuncMatcher<T>.
+                            var typeToCreate = typeof(ItFuncMatcher<>).MakeGenericType(methodCall.Method.ReturnType);
+                            var genericClassInstance = Activator.CreateInstance(typeToCreate, runArgument);
+                            matcherFound = (ItMatcher)genericClassInstance;
+                        }
+                        else
+                        {
+                            matcherFound = new ItValueMatcher(RunExpression(methodCall.Arguments[0]));
+                        }
+                        return true;
+                    }
                 }
             }
 

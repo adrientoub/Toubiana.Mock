@@ -45,7 +45,7 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
-        public void ItIs_CheckTypeIsCorrectTest()
+        public void ImplicitIt_CheckTypeIsCorrectTest()
         {
             var mock = new Mock<ICheckObject>();
             mock.Setup(c => c.CheckObject("toto"))
@@ -60,6 +60,34 @@ namespace Toubiana.Mock.Tests
             Assert.False(mock.Object.CheckObject(12));
             Assert.Throws<NoMatchingSetupException>(
                 () => mock.Object.CheckObject(new object()));
+        }
+
+        [Fact]
+        public void ItIs_CheckTypeIsCorrectTest()
+        {
+            var mock = new Mock<ICheckObject>();
+            mock.Setup(c => c.CheckObject(It.Is("toto")))
+                .Returns(true);
+            mock.Setup(c => c.CheckObject(It.Is("test")))
+                .Returns(false);
+            mock.Setup(c => c.CheckObject(It.Is(12)))
+                .Returns(false);
+
+            Assert.True(mock.Object.CheckObject("toto"));
+            Assert.False(mock.Object.CheckObject("test"));
+            Assert.False(mock.Object.CheckObject(12));
+            Assert.Throws<NoMatchingSetupException>(
+                () => mock.Object.CheckObject(new object()));
+        }
+
+        [Fact]
+        public void ItIs_FuncMatcherTest()
+        {
+            var mock = new Mock<ICheckObject>();
+            mock.Setup(c => c.CheckObject(It.Is((string x) => x[0] == 't' && x[1] == 'o' && x.Length == 4)))
+                .Returns(true);
+
+            Assert.True(mock.Object.CheckObject("toto"));
         }
     }
 }
