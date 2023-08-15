@@ -80,6 +80,23 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
+        public void AtMostOnceTest()
+        {
+            Mock<IBasic> mock = GetSetupMock();
+
+            mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce());
+            mock.Object.SimpleMethod();
+            mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce());
+
+            mock.Object.SimpleMethod();
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce()));
+            mock.Object.SimpleMethod();
+            Assert.Throws<VerifyFailedException>(
+                () => mock.Verify(c => c.SimpleMethod(), Times.AtMostOnce()));
+        }
+
+        [Fact]
         public void BetweenTest()
         {
             Mock<IBasic> mock = GetSetupMock();

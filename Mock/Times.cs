@@ -29,6 +29,11 @@ namespace Toubiana.Mock
             return new TimesAtMost(count);
         }
 
+        public static Times AtMostOnce()
+        {
+            return new TimesAtMost(1);
+        }
+
         public static Times Exactly(int count)
         {
             return new TimesExact(count);
