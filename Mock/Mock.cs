@@ -208,7 +208,7 @@ namespace Toubiana.Mock
                     }
                     else
                     {
-                        throw new Exception($"Unsupported expression type: {arg.GetType()}");
+                        throw new MockInternalException($"Unsupported expression type: {arg.GetType()}");
                     }
                 }
                 return matchers;
