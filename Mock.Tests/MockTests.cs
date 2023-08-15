@@ -90,6 +90,16 @@ namespace Toubiana.Mock.Tests
         }
 
         [Fact]
+        public void MockGetTest()
+        {
+            var mock = new Mock<IConvert>();
+            var obj = mock.Object;
+
+            var retrievedMock = Mock.Get(obj);
+            Assert.Equal(mock, retrievedMock);
+        }
+
+        [Fact]
         public void ToFloatConvertWithNewInSetupTest()
         {
             var mock = new Mock<IConvert>();

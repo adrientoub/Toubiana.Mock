@@ -9,16 +9,43 @@ using Toubiana.Mock.Exceptions;
 
 namespace Toubiana.Mock
 {
-    public class Mock<T>
+    public abstract class Mock
+    {
+        protected const string MockObjectPropertyName = "MockObjectReference";
+        protected const string MockTypeName = "MockInternalTypeName";
+
+        public static Mock<T> Get<T>(T instance)
+            where T : class
+        {
+            var instanceType = instance.GetType();
+            if (instanceType.Name != MockTypeName)
+            {
+                throw new InvalidMockOperationException($"The instance is not a mock object. The type name is {instanceType.Name}.");
+            }
+
+            var property = instanceType.GetProperty(MockObjectPropertyName);
+            if (property == null)
+            {
+                throw new MockInternalException($"Could not find internal property in proxy class.");
+            }
+
+            var mock = (Mock<T>?)property.GetValue(instance);
+            if (mock == null)
+            {
+                throw new MockInternalException($"Internal property returned null in proxy class.");
+            }
+
+            return mock;
+        }
+    }
+
+    public class Mock<T> : Mock
         where T : class
     {
         private readonly ConcurrentDictionary<string, MultiSetupMethodReturn> _setups = new ConcurrentDictionary<string, MultiSetupMethodReturn>();
 
         private readonly Type _interface;
         private T? _object = default;
-
-        private const string MockObjectPropertyName = "SuperMock";
-        private const string MockTypeName = "MyMockTypeName";
 
         public Mock()
         {
@@ -357,7 +384,7 @@ namespace Toubiana.Mock
 
         private static PropertyBuilder DefinePropertyToStoreMock(TypeBuilder typeBuilder)
         {
-            var propertyBuilder = typeBuilder.DefineProperty(MockObjectPropertyName, PropertyAttributes.None, typeof(Mock<T>), new Type[0]);
+            var propertyBuilder = typeBuilder.DefineProperty(MockObjectPropertyName, PropertyAttributes.None, typeof(Mock<T>), Array.Empty<Type>());
 
             // Define field
             FieldBuilder fieldBuilder = typeBuilder.DefineField("m_" + MockObjectPropertyName, typeof(Mock<T>), FieldAttributes.Private);
