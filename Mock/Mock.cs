@@ -164,7 +164,6 @@ namespace Toubiana.Mock
             if (_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
                 var mockReturn = multiMethodSetup.GetSetup(parameters);
-                mockReturn.Call();
                 return mockReturn.GetResult();
             }
 
@@ -180,7 +179,7 @@ namespace Toubiana.Mock
             }
 
             var mockReturn = multiMethodSetup.GetSetup(parameters);
-            mockReturn.Call();
+            mockReturn.GetResult();
         }
 
         private T BuildObject()

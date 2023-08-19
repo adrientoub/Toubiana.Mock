@@ -10,15 +10,30 @@ namespace Toubiana.Mock
         protected readonly string _methodName;
         private readonly List<ItMatcher> _argumentMatchers;
 
+        protected Exception? _exception;
+        protected bool _isSetup = false;
+
         internal int CallCount { get; private set; } = 0;
 
         internal MockReturn(string methodName, List<ItMatcher> argumentMatchers)
+            : this(methodName, argumentMatchers, true)
+        {
+        }
+
+        private protected MockReturn(string methodName, List<ItMatcher> argumentMatchers, bool isSetup)
         {
             _methodName = methodName;
             _argumentMatchers = argumentMatchers;
+            _isSetup = isSetup;
         }
 
-        internal void Call()
+        public void Throws(Exception exception)
+        {
+            _exception = exception;
+            _isSetup = true;
+        }
+
+        private void RegisterCall()
         {
             CallCount++;
         }
@@ -48,24 +63,35 @@ namespace Toubiana.Mock
 
         internal virtual object? GetResult()
         {
-            throw new NotImplementedException();
+            if (!_isSetup)
+            {
+                throw new IncompleteSetupException(_methodName);
+            }
+            this.RegisterCall();
+
+            if (_exception != null)
+            {
+                throw _exception;
+            }
+
+            return null;
         }
     }
 
     public class MockReturn<TResult> : MockReturn
     {
         internal MockReturn(string methodName, List<ItMatcher> argumentMatchers)
-            : base(methodName, argumentMatchers)
+            : base(methodName, argumentMatchers, false)
         {
         }
 
         private TResult? _result = default;
         private Delegate? _resultDelegate = default;
-        private bool _isSetup = false;
 
         public void Returns(TResult result)
         {
             _resultDelegate = null;
+            _exception = null;
             _result = result;
             _isSetup = true;
         }
@@ -73,16 +99,14 @@ namespace Toubiana.Mock
         public void Returns<T>(Func<TResult> result)
         {
             _resultDelegate = result;
+            _exception = null;
             _result = default;
             _isSetup = true;
         }
 
         internal override object? GetResult()
         {
-            if (!_isSetup)
-            {
-                throw new IncompleteSetupException(_methodName);
-            }
+            base.GetResult();
 
             if (_resultDelegate != null)
             {
