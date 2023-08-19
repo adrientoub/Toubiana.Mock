@@ -60,12 +60,20 @@ namespace Toubiana.Mock
         }
 
         private TResult? _result = default;
-        private bool _isAsync = false;
+        private Delegate? _resultDelegate = default;
         private bool _isSetup = false;
 
         public void Returns(TResult result)
         {
+            _resultDelegate = null;
             _result = result;
+            _isSetup = true;
+        }
+
+        public void Returns<T>(Func<TResult> result)
+        {
+            _resultDelegate = result;
+            _result = default;
             _isSetup = true;
         }
 
@@ -76,11 +84,30 @@ namespace Toubiana.Mock
                 throw new IncompleteSetupException(_methodName);
             }
 
-            if (_isAsync)
+            if (_resultDelegate != null)
             {
-                return Task.FromResult(_result);
+                return _resultDelegate.DynamicInvoke();
             }
+
             return _result;
+        }
+    }
+
+    public class MockAsyncReturn<TResult> : MockReturn<Task<TResult>>
+    {
+        internal MockAsyncReturn(string methodName, List<ItMatcher> argumentMatchers)
+            : base(methodName, argumentMatchers)
+        {
+        }
+
+        public void ReturnsAsync(Func<TResult> func)
+        {
+            Returns<Task<TResult>>(() => Task.FromResult(func()));
+        }
+
+        public void ReturnsAsync(TResult value)
+        {
+            Returns(Task.FromResult(value));
         }
     }
 }

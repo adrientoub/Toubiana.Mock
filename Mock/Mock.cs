@@ -5,6 +5,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading.Tasks;
 using Toubiana.Mock.Exceptions;
 
 namespace Toubiana.Mock
@@ -55,6 +56,21 @@ namespace Toubiana.Mock
             }
 
             _interface = typeof(T);
+        }
+
+        public MockAsyncReturn<TResult> Setup<TResult>(Expression<Func<T, Task<TResult>>> func)
+        {
+            var methodName = GetMethodName(func);
+            var methodArguments = GetMethodSetupArguments(func);
+            if (!_setups.TryGetValue(methodName, out var multiSetupMethodReturn))
+            {
+                multiSetupMethodReturn = new MultiSetupMethodReturn(methodName);
+                _setups[methodName] = multiSetupMethodReturn;
+            }
+
+            var mockReturn = new MockAsyncReturn<TResult>(methodName, methodArguments);
+            multiSetupMethodReturn.AddSetup(mockReturn);
+            return mockReturn;
         }
 
         public MockReturn<TResult> Setup<TResult>(Expression<Func<T, TResult>> func)
