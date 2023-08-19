@@ -1,4 +1,4 @@
-# Toubiana.Mock
+# Toubiana.Mock [![install count](https://img.shields.io/nuget/dt/Toubiana.Mock)](https://www.nuget.org/packages/Toubiana.Mock/)
 
 ## A simple mocking library for .NET
 
