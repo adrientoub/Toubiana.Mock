@@ -147,6 +147,17 @@ namespace Toubiana.Mock
             Verify(func, funcTimes());
         }
 
+        /// <summary>
+        /// Verifies that all the verifiable setups have been called at least once.
+        /// </summary>
+        public void Verify()
+        {
+            foreach (var item in _setups)
+            {
+                item.Value.Verify();
+            }
+        }
+
         public void VerifyAll()
         {
             foreach (var item in _setups)

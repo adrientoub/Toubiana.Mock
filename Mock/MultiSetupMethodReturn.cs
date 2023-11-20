@@ -46,5 +46,16 @@ namespace Toubiana.Mock
                 }
             }
         }
+
+        /// <summary>
+        /// Verify that all the verifiable setups have been called at least once.
+        /// </summary>
+        internal void Verify()
+        {
+            foreach (var setup in _setups)
+            {
+                setup.Verify();
+            }
+        }
     }
 }

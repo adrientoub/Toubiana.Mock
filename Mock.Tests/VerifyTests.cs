@@ -103,5 +103,34 @@ namespace Toubiana.Mock.Tests
 
             mock.VerifyAll();
         }
+
+        [Fact]
+        public void Test_VerifiableWorks()
+        {
+            var mock = new Mock<IAnimal>();
+            mock.Setup(c => c.Walk()).Verifiable();
+
+            mock.Object.Walk();
+
+            mock.Verify();
+        }
+
+        [Fact]
+        public void Test_VerifyOnlyChecksVerifiable()
+        {
+            var mock = new Mock<IAnimal>();
+            mock.Setup(c => c.Walk());
+
+            mock.Verify();
+        }
+
+        [Fact]
+        public void Test_VerifiableNotCalledFails()
+        {
+            var mock = new Mock<IAnimal>();
+            mock.Setup(c => c.Walk()).Verifiable();
+
+            Assert.Throws<VerifyFailedException>(() => mock.Verify());
+        }
     }
 }

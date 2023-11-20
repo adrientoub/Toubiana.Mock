@@ -12,6 +12,7 @@ namespace Toubiana.Mock
 
         protected Exception? _exception;
         protected bool _isSetup = false;
+        protected bool _isVerifiable = false;
 
         internal int CallCount { get; private set; } = 0;
 
@@ -75,6 +76,22 @@ namespace Toubiana.Mock
             }
 
             return null;
+        }
+
+        public void Verifiable()
+        {
+            _isVerifiable = true;
+        }
+
+        /// <summary>
+        /// Checks that verifiable setup has been called at least once.
+        /// </summary>
+        internal void Verify()
+        {
+            if (_isVerifiable && CallCount == 0)
+            {
+                throw new VerifyFailedException(MethodDefinitionToString(), Times.AtLeastOnce(), 0);
+            }
         }
     }
 
