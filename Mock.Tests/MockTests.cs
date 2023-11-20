@@ -64,7 +64,7 @@ namespace Toubiana.Mock.Tests
         [Fact]
         public void CallNotSetupMethodWithReturnTest()
         {
-            var mockDog = new Mock<IAnimal>();
+            var mockDog = new Mock<IAnimal>(MockBehavior.Strict);
 
             Assert.Throws<MethodNotSetupException>(
                 () => mockDog.Object.Talk());
@@ -73,7 +73,7 @@ namespace Toubiana.Mock.Tests
         [Fact]
         public void CallNotSetupMethodTest()
         {
-            var mockDog = new Mock<IAnimal>();
+            var mockDog = new Mock<IAnimal>(MockBehavior.Strict);
 
             Assert.Throws<MethodNotSetupException>(
                 () => mockDog.Object.Walk());

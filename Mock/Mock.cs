@@ -46,15 +46,17 @@ namespace Toubiana.Mock
         private readonly ConcurrentDictionary<string, MultiSetupMethodReturn> _setups = new ConcurrentDictionary<string, MultiSetupMethodReturn>();
 
         private readonly Type _interface;
+        private readonly MockBehavior _mockBehavior;
         private T? _object = default;
 
-        public Mock()
+        public Mock(MockBehavior mockBehavior = MockBehavior.Loose)
         {
             if (!typeof(T).IsInterface)
             {
                 throw new InvalidOperationException();
             }
 
+            _mockBehavior = mockBehavior;
             _interface = typeof(T);
         }
 
@@ -108,7 +110,7 @@ namespace Toubiana.Mock
             var key = GetMethodName(func);
             if (_setups.TryGetValue(key, out var multiSetupMethodReturn))
             {
-                var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>());
+                var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>(), nullIfNotFound: false)!;
                 if (!times.Match(mockReturn.CallCount))
                 {
                     throw new VerifyFailedException(key, times, mockReturn.CallCount);
@@ -130,7 +132,7 @@ namespace Toubiana.Mock
             var key = GetMethodName(func);
             if (_setups.TryGetValue(key, out var multiSetupMethodReturn))
             {
-                var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>());
+                var mockReturn = multiSetupMethodReturn.GetSetup(new List<object?>(), nullIfNotFound: false)!;
                 if (!times.Match(mockReturn.CallCount))
                 {
                     throw new VerifyFailedException(key, times, mockReturn.CallCount);
@@ -182,8 +184,17 @@ namespace Toubiana.Mock
         {
             if (_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
-                var mockReturn = multiMethodSetup.GetSetup(parameters);
-                return mockReturn.GetResult();
+                var mockReturn = multiMethodSetup.GetSetup(parameters, nullIfNotFound: MockBehavior.Loose == _mockBehavior);
+                if (mockReturn != null)
+                {
+                    return mockReturn.GetResult();
+                }
+            }
+
+            if (_mockBehavior == MockBehavior.Loose)
+            {
+                // TODO: retrieve the return type of the method before returning default.
+                return default;
             }
 
             throw new MethodNotSetupException(methodName);
@@ -194,11 +205,16 @@ namespace Toubiana.Mock
         {
             if (!_setups.TryGetValue(methodName, out var multiMethodSetup))
             {
+                if (_mockBehavior == MockBehavior.Loose)
+                {
+                    return;
+                }
+
                 throw new MethodNotSetupException(methodName);
             }
 
-            var mockReturn = multiMethodSetup.GetSetup(parameters);
-            mockReturn.GetResult();
+            var mockReturn = multiMethodSetup.GetSetup(parameters, nullIfNotFound: MockBehavior.Loose == _mockBehavior);
+            mockReturn?.GetResult();
         }
 
         private T BuildObject()

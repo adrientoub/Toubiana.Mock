@@ -32,7 +32,7 @@ namespace Toubiana.Mock.Tests
         [Fact]
         public void ItIsAny_CheckTypeIsCorrectTest()
         {
-            var mock = new Mock<ICheckObject>();
+            var mock = new Mock<ICheckObject>(MockBehavior.Strict);
             mock.Setup(c => c.CheckObject(It.IsAny<string>()))
                 .Returns(true);
             mock.Setup(c => c.CheckObject(It.IsAny<float>()))
@@ -47,7 +47,7 @@ namespace Toubiana.Mock.Tests
         [Fact]
         public void ImplicitIt_CheckTypeIsCorrectTest()
         {
-            var mock = new Mock<ICheckObject>();
+            var mock = new Mock<ICheckObject>(MockBehavior.Strict);
             mock.Setup(c => c.CheckObject("toto"))
                 .Returns(true);
             mock.Setup(c => c.CheckObject("test"))
@@ -65,7 +65,7 @@ namespace Toubiana.Mock.Tests
         [Fact]
         public void ItIs_CheckTypeIsCorrectTest()
         {
-            var mock = new Mock<ICheckObject>();
+            var mock = new Mock<ICheckObject>(MockBehavior.Strict);
             mock.Setup(c => c.CheckObject(It.Is("toto")))
                 .Returns(true);
             mock.Setup(c => c.CheckObject(It.Is("test")))

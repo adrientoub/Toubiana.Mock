@@ -23,7 +23,7 @@ namespace Toubiana.Mock
             _setups.Add(mockReturn);
         }
 
-        internal MockReturn GetSetup(IList<object?> actualArguments)
+        internal MockReturn? GetSetup(IList<object?> actualArguments, bool nullIfNotFound)
         {
             foreach (var setup in _setups)
             {
@@ -31,6 +31,11 @@ namespace Toubiana.Mock
                 {
                     return setup;
                 }
+            }
+
+            if (nullIfNotFound)
+            {
+                return null;
             }
 
             throw new NoMatchingSetupException(_methodName, _setups.Select(s => s.MethodDefinitionToString()).ToList());
