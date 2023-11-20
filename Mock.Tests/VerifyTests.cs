@@ -83,5 +83,25 @@ namespace Toubiana.Mock.Tests
             _ = propertyMock.Object.Name;
             propertyMock.Verify(c => c.Name, Times.Once());
         }
+
+        [Fact]
+        public void Test_VerifyAll_Fails()
+        {
+            var mock = new Mock<IAnimal>();
+            mock.Setup(c => c.Walk());
+
+            Assert.Throws<VerifyFailedException>(() => mock.VerifyAll());
+        }
+
+        [Fact]
+        public void Test_VerifyAll_Succeeds()
+        {
+            var mock = new Mock<IAnimal>();
+            mock.Setup(c => c.Walk());
+
+            mock.Object.Walk();
+
+            mock.VerifyAll();
+        }
     }
 }

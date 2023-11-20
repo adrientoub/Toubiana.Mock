@@ -35,5 +35,16 @@ namespace Toubiana.Mock
 
             throw new NoMatchingSetupException(_methodName, _setups.Select(s => s.MethodDefinitionToString()).ToList());
         }
+
+        internal void VerifyAll()
+        {
+            foreach (var setup in _setups)
+            {
+                if (setup.CallCount == 0)
+                {
+                    throw new VerifyFailedException(setup.MethodDefinitionToString(), Times.AtLeastOnce(), 0);
+                }
+            }
+        }
     }
 }

@@ -147,6 +147,14 @@ namespace Toubiana.Mock
             Verify(func, funcTimes());
         }
 
+        public void VerifyAll()
+        {
+            foreach (var item in _setups)
+            {
+                item.Value.VerifyAll();
+            }
+        }
+
         public T Object
         {
             get
